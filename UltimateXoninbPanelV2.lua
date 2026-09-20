@@ -17,8 +17,8 @@ screenGui.Parent = player:WaitForChild("PlayerGui")
 -- Main Container Frame
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 440, 0, 520)
-mainFrame.Position = UDim2.new(0.5, -220, 0.5, -260)
+mainFrame.Size = UDim2.new(0, 440, 0, 580)
+mainFrame.Position = UDim2.new(0.5, -220, 0.5, -290)
 mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
@@ -36,7 +36,7 @@ mainStroke.Thickness = 1.5
 mainStroke.Parent = mainFrame
 
 --------------------------------------------------------------------------------
--- WINDOWS 11 TITLE BAR & CONTROL BUTTONS (Close, Maximize/Restore, Minimize)
+-- WINDOWS 11 TITLE BAR & CONTROL BUTTONS
 --------------------------------------------------------------------------------
 
 local windowBar = Instance.new("Frame")
@@ -102,14 +102,10 @@ local minBtn = createWinButton("—", 1, false)
 local maxBtn = createWinButton("□", 2, false)
 local closeBtn = createWinButton("✕", 3, true)
 
---------------------------------------------------------------------------------
--- WINDOW CONTROL ACTIONS
---------------------------------------------------------------------------------
-
 local isMinimized = false
 local isMaximized = false
-local defaultSize = UDim2.new(0, 440, 0, 520)
-local defaultPos = UDim2.new(0.5, -220, 0.5, -260)
+local defaultSize = UDim2.new(0, 440, 0, 580)
+local defaultPos = UDim2.new(0.5, -220, 0.5, -290)
 
 minBtn.MouseButton1Click:Connect(function()
 	isMinimized = not isMinimized
@@ -202,7 +198,7 @@ local subLabel = Instance.new("TextLabel")
 subLabel.Size = UDim2.new(1, -60, 0, 18)
 subLabel.Position = UDim2.new(0, 56, 0, 28)
 subLabel.BackgroundTransparency = 1
-subLabel.Text = "Hotkey: Right Control | Version 2.0"
+subLabel.Text = "Hotkey: Right Control | Version 3.1"
 subLabel.TextColor3 = Color3.fromRGB(140, 140, 155)
 subLabel.TextSize = 11
 subLabel.Font = Enum.Font.Gotham
@@ -256,7 +252,7 @@ statusLabel.TextXAlignment = Enum.TextXAlignment.Left
 statusLabel.Parent = mainFrame
 
 --------------------------------------------------------------------------------
--- HELPER FUNCTIONS FOR ANIMATIONS & TAB SWITCHING
+-- HELPER FUNCTIONS
 --------------------------------------------------------------------------------
 
 local tabs = {}
@@ -321,7 +317,7 @@ local function createButton(text, parent, order, customColor)
 	button.BorderSizePixel = 0
 	button.Text = text
 	button.TextColor3 = Color3.fromRGB(230, 230, 240)
-	button.TextSize = 12
+	button.TextSize = 11
 	button.Font = Enum.Font.GothamBold
 	button.LayoutOrder = order
 	button.Parent = parent
@@ -351,7 +347,7 @@ local function createButton(text, parent, order, customColor)
 end
 
 --------------------------------------------------------------------------------
--- CREATING TABS
+-- TABS CREATION
 --------------------------------------------------------------------------------
 
 local localPage = createTab("Local", 1)
@@ -363,21 +359,125 @@ tabs["Local"].Button.BackgroundColor3 = Color3.fromRGB(0, 140, 220)
 tabs["Local"].Button.TextColor3 = Color3.fromRGB(255, 255, 255)
 
 --------------------------------------------------------------------------------
--- LOCAL TAB FEATURES
+-- LOCAL TAB (FLY, GOD MODE & LOCAL CONTROLS)
 --------------------------------------------------------------------------------
 
-local noclipBtn = createButton("TOGGLE NOCLIP", localPage, 1)
-local spinFlingBtn = createButton("TOGGLE SPIN FLING", localPage, 2, Color3.fromRGB(180, 40, 60))
-local speedBtn = createButton("TOGGLE SPEED BOOST", localPage, 3)
-local jumpBtn = createButton("TOGGLE JUMP BOOST", localPage, 4)
-local respawnBtn = createButton("RESPAWN CHARACTER", localPage, 5, Color3.fromRGB(140, 35, 45))
+local flyBtn = createButton("TOGGLE FLY MODE", localPage, 1, Color3.fromRGB(0, 150, 180))
+local godModeBtn = createButton("TOGGLE GOD MODE", localPage, 2, Color3.fromRGB(0, 120, 180))
+local noclipBtn = createButton("TOGGLE NOCLIP", localPage, 3)
+local spinFlingBtn = createButton("TOGGLE LOCAL SPIN FLING", localPage, 4, Color3.fromRGB(180, 40, 60))
+local speedBtn = createButton("TOGGLE SPEED BOOST", localPage, 5)
+local jumpBtn = createButton("TOGGLE JUMP BOOST", localPage, 6)
+local respawnBtn = createButton("RESPAWN CHARACTER", localPage, 7, Color3.fromRGB(140, 35, 45))
 
+local isFlying = false
+local flySpeed = 50
+local flyConnection = nil
+local bv, bg = nil, nil
+
+local isGodMode = false
+local godConnection = nil
 local noclipping = false
 local spinFlinging = false
 local speedBoost = false
 local jumpBoost = false
 local noclipConnection = nil
 local spinFlingConnection = nil
+
+-- FLY LOGIC
+flyBtn.MouseButton1Click:Connect(function()
+	isFlying = not isFlying
+	local char = player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+
+	if isFlying and root and hum then
+		flyBtn.Text = "FLY MODE: ACTIVE"
+		flyBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 90)
+		updateStatus("Flying Enabled (WASD + Space/Shift)", Color3.fromRGB(0, 255, 150))
+
+		bv = Instance.new("BodyVelocity")
+		bv.MaxForce = Vector3.new(1, 1, 1) * math.huge
+		bv.Velocity = Vector3.zero
+		bv.Parent = root
+
+		bg = Instance.new("BodyGyro")
+		bg.MaxTorque = Vector3.new(1, 1, 1) * math.huge
+		bg.CFrame = root.CFrame
+		bg.Parent = root
+
+		hum.PlatformStand = true
+
+		flyConnection = RunService.RenderStepped:Connect(function()
+			if not isFlying or not root or not hum then return end
+
+			local cam = workspace.CurrentCamera
+			local moveVector = Vector3.zero
+
+			if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveVector = moveVector + cam.CFrame.LookVector end
+			if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveVector = moveVector - cam.CFrame.LookVector end
+			if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveVector = moveVector - cam.CFrame.RightVector end
+			if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveVector = moveVector + cam.CFrame.RightVector end
+			if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveVector = moveVector + Vector3.new(0, 1, 0) end
+			if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveVector = moveVector - Vector3.new(0, 1, 0) end
+
+			if moveVector.Magnitude > 0 then
+				bv.Velocity = moveVector.Unit * flySpeed
+			else
+				bv.Velocity = Vector3.zero
+			end
+
+			bg.CFrame = cam.CFrame
+		end)
+	else
+		flyBtn.Text = "TOGGLE FLY MODE"
+		flyBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 180)
+		updateStatus("Fly Mode Disabled", Color3.fromRGB(255, 90, 90))
+
+		if flyConnection then
+			flyConnection:Disconnect()
+			flyConnection = nil
+		end
+		if bv then bv:Destroy() bv = nil end
+		if bg then bg:Destroy() bg = nil end
+		if hum then hum.PlatformStand = false end
+	end
+end)
+
+-- GOD MODE LOGIC
+godModeBtn.MouseButton1Click:Connect(function()
+	isGodMode = not isGodMode
+	if isGodMode then
+		godModeBtn.Text = "GOD MODE: ACTIVE"
+		godModeBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 90)
+		updateStatus("God Mode Active", Color3.fromRGB(0, 255, 150))
+		
+		godConnection = RunService.Stepped:Connect(function()
+			local char = player.Character
+			local hum = char and char:FindFirstChildOfClass("Humanoid")
+			if hum then
+				hum.MaxHealth = math.huge
+				hum.Health = math.huge
+				hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+			end
+		end)
+	else
+		godModeBtn.Text = "TOGGLE GOD MODE"
+		godModeBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 180)
+		updateStatus("God Mode Disabled", Color3.fromRGB(255, 90, 90))
+		if godConnection then
+			godConnection:Disconnect()
+			godConnection = nil
+		end
+		local char = player.Character
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if hum then
+			hum.MaxHealth = 100
+			hum.Health = 100
+			hum:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
+		end
+	end
+end)
 
 noclipBtn.MouseButton1Click:Connect(function()
 	noclipping = not noclipping
@@ -406,9 +506,9 @@ end)
 spinFlingBtn.MouseButton1Click:Connect(function()
 	spinFlinging = not spinFlinging
 	if spinFlinging then
-		spinFlingBtn.Text = "SPIN FLING: ACTIVE"
+		spinFlingBtn.Text = "LOCAL SPIN FLING: ACTIVE"
 		spinFlingBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 80)
-		updateStatus("Spin Fling Active", Color3.fromRGB(0, 255, 150))
+		updateStatus("Local Spin Fling Active", Color3.fromRGB(0, 255, 150))
 		
 		spinFlingConnection = RunService.PostSimulation:Connect(function()
 			local char = player.Character
@@ -418,9 +518,9 @@ spinFlingBtn.MouseButton1Click:Connect(function()
 			end
 		end)
 	else
-		spinFlingBtn.Text = "TOGGLE SPIN FLING"
+		spinFlingBtn.Text = "TOGGLE LOCAL SPIN FLING"
 		spinFlingBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 60)
-		updateStatus("Spin Fling Disabled", Color3.fromRGB(255, 90, 90))
+		updateStatus("Local Spin Fling Disabled", Color3.fromRGB(255, 90, 90))
 		if spinFlingConnection then
 			spinFlingConnection:Disconnect()
 			spinFlingConnection = nil
@@ -461,7 +561,7 @@ respawnBtn.MouseButton1Click:Connect(function()
 end)
 
 --------------------------------------------------------------------------------
--- TARGET TAB FEATURES (DROPDOWN PLAYER SELECTOR)
+-- TARGET TAB (COPY AVATAR & WASD/MOUSE REMOTE CONTROL INCLUDED)
 --------------------------------------------------------------------------------
 
 local selectLabel = Instance.new("TextLabel")
@@ -592,12 +692,143 @@ end)
 
 populatePlayerList()
 
+-- Target Action Buttons
 local tpBtn = createButton("TELEPORT TO TARGET", targetPage, 3)
-local remoteFlingBtn = createButton("REMOTE TARGET FLING", targetPage, 4, Color3.fromRGB(180, 40, 60))
-local viewBtn = createButton("VIEW TARGET", targetPage, 5)
-local unviewBtn = createButton("RESET VIEW", targetPage, 6)
+local copyAvatarBtn = createButton("COPY TARGET'S AVATAR", targetPage, 4, Color3.fromRGB(0, 120, 180))
+local remoteControlBtn = createButton("TOGGLE WASD / MOUSE REMOTE CONTROL", targetPage, 5, Color3.fromRGB(0, 150, 120))
+local remoteFlingBtn = createButton("REMOTE TARGET FLING", targetPage, 6, Color3.fromRGB(180, 40, 60))
+local targetSpinBtn = createButton("TOGGLE TARGET SPIN HACK", targetPage, 7, Color3.fromRGB(180, 40, 60))
+local viewBtn = createButton("VIEW TARGET", targetPage, 8)
+local unviewBtn = createButton("RESET VIEW", targetPage, 9)
 
 local isRemoteFlinging = false
+local isTargetSpinning = false
+local targetSpinConnection = nil
+local isRemoteControlling = false
+local remoteControlConnection = nil
+
+-- COPY TARGET'S AVATAR LOGIC
+copyAvatarBtn.MouseButton1Click:Connect(function()
+	if not selectedTargetPlayer then
+		updateStatus("Select a target player first!", Color3.fromRGB(255, 80, 80))
+		return
+	end
+
+	local success, err = pcall(function()
+		local humDesc = Players:GetHumanoidDescriptionFromUserId(selectedTargetPlayer.UserId)
+		local myHum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		if myHum and humDesc then
+			myHum:ApplyDescription(humDesc)
+		end
+	end)
+
+	if success then
+		updateStatus("Copied avatar of " .. selectedTargetPlayer.DisplayName, Color3.fromRGB(0, 255, 150))
+	else
+		updateStatus("Failed to copy avatar", Color3.fromRGB(255, 80, 80))
+	end
+end)
+
+-- FULL WASD AND MOUSE REMOTE CONTROL LOGIC
+remoteControlBtn.MouseButton1Click:Connect(function()
+	if not selectedTargetPlayer or not selectedTargetPlayer.Character or not selectedTargetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		updateStatus("Select a target player first!", Color3.fromRGB(255, 80, 80))
+		return
+	end
+
+	isRemoteControlling = not isRemoteControlling
+
+	if isRemoteControlling then
+		remoteControlBtn.Text = "REMOTE CONTROL: ACTIVE"
+		remoteControlBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 90)
+		updateStatus("Controlling " .. selectedTargetPlayer.DisplayName .. " (WASD + Mouse)", Color3.fromRGB(0, 255, 150))
+
+		workspace.CurrentCamera.CameraSubject = selectedTargetPlayer.Character:FindFirstChildOfClass("Humanoid")
+
+		remoteControlConnection = RunService.RenderStepped:Connect(function()
+			if not selectedTargetPlayer or not selectedTargetPlayer.Character then return end
+			local targetRoot = selectedTargetPlayer.Character:FindFirstChild("HumanoidRootPart")
+			local camera = workspace.CurrentCamera
+			if not targetRoot or not camera then return end
+
+			local moveDir = Vector3.zero
+			local camLook = camera.CFrame.LookVector
+			local camRight = camera.CFrame.RightVector
+
+			camLook = Vector3.new(camLook.X, 0, camLook.Z).Unit
+			camRight = Vector3.new(camRight.X, 0, camRight.Z).Unit
+
+			if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + camLook end
+			if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - camLook end
+			if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - camRight end
+			if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + camRight end
+
+			if moveDir.Magnitude > 0 then
+				moveDir = moveDir.Unit * 0.75
+				targetRoot.CFrame = CFrame.new(targetRoot.Position + moveDir, targetRoot.Position + moveDir + camLook)
+			else
+				targetRoot.CFrame = CFrame.new(targetRoot.Position, targetRoot.Position + camLook)
+			end
+
+			if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+				local hum = selectedTargetPlayer.Character:FindFirstChildOfClass("Humanoid")
+				if hum then hum.Jump = true end
+			end
+		end)
+	else
+		remoteControlBtn.Text = "TOGGLE WASD / MOUSE REMOTE CONTROL"
+		remoteControlBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 120)
+		updateStatus("Remote Control Disabled", Color3.fromRGB(255, 90, 90))
+
+		if remoteControlConnection then
+			remoteControlConnection:Disconnect()
+			remoteControlConnection = nil
+		end
+
+		if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+			workspace.CurrentCamera.CameraSubject = player.Character:FindFirstChildOfClass("Humanoid")
+		end
+	end
+end)
+
+-- Target Spin Logic
+targetSpinBtn.MouseButton1Click:Connect(function()
+	if not selectedTargetPlayer or not selectedTargetPlayer.Character or not selectedTargetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		updateStatus("Select a target player first!", Color3.fromRGB(255, 80, 80))
+		return
+	end
+
+	isTargetSpinning = not isTargetSpinning
+
+	if isTargetSpinning then
+		targetSpinBtn.Text = "TARGET SPIN: ACTIVE"
+		targetSpinBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 80)
+		updateStatus("Spinning target: " .. selectedTargetPlayer.DisplayName, Color3.fromRGB(0, 255, 150))
+
+		targetSpinConnection = RunService.PostSimulation:Connect(function()
+			if selectedTargetPlayer and selectedTargetPlayer.Character then
+				local targetRoot = selectedTargetPlayer.Character:FindFirstChild("HumanoidRootPart")
+				if targetRoot then
+					targetRoot.AssemblyAngularVelocity = Vector3.new(0, 10000, 0)
+				end
+			end
+		end)
+	else
+		targetSpinBtn.Text = "TOGGLE TARGET SPIN HACK"
+		targetSpinBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 60)
+		updateStatus("Target Spin Disabled", Color3.fromRGB(255, 90, 90))
+		if targetSpinConnection then
+			targetSpinConnection:Disconnect()
+			targetSpinConnection = nil
+		end
+		if selectedTargetPlayer and selectedTargetPlayer.Character then
+			local targetRoot = selectedTargetPlayer.Character:FindFirstChild("HumanoidRootPart")
+			if targetRoot then
+				targetRoot.AssemblyAngularVelocity = Vector3.zero
+			end
+		end
+	end
+end)
 
 tpBtn.MouseButton1Click:Connect(function()
 	if selectedTargetPlayer and selectedTargetPlayer.Character and selectedTargetPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -742,14 +973,13 @@ local loadingStatus = Instance.new("TextLabel")
 loadingStatus.Size = UDim2.new(1, 0, 0, 20)
 loadingStatus.Position = UDim2.new(0, 0, 0.44, 0)
 loadingStatus.BackgroundTransparency = 1
-loadingStatus.Text = "Loading Assets & User Data"
+loadingStatus.Text = "Loading Control Modules & Avatar Data"
 loadingStatus.TextColor3 = Color3.fromRGB(150, 150, 165)
 loadingStatus.TextSize = 11
 loadingStatus.Font = Enum.Font.Gotham
 loadingStatus.ZIndex = 51
 loadingStatus.Parent = loadingOverlay
 
--- Spinner Frame
 local spinner = Instance.new("Frame")
 spinner.Size = UDim2.new(0, 36, 0, 36)
 spinner.Position = UDim2.new(0.5, -18, 0.54, 0)
@@ -766,7 +996,6 @@ local spinnerCorner = Instance.new("UICorner")
 spinnerCorner.CornerRadius = UDim.new(1, 0)
 spinnerCorner.Parent = spinner
 
--- Loading Sequence Animation
 task.spawn(function()
 	local spinTween = TweenService:Create(spinner, TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), {Rotation = 360})
 	spinTween:Play()
