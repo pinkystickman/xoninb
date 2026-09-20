@@ -6,17 +6,19 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 
+local selectedTargetPlayer = nil
+
 -- Screen Container
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "XoninbModernPanel"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Main Container
+-- Main Container Frame
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 420, 0, 500)
-mainFrame.Position = UDim2.new(0.5, -210, 0.5, -250)
+mainFrame.Size = UDim2.new(0, 440, 0, 520)
+mainFrame.Position = UDim2.new(0.5, -220, 0.5, -260)
 mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
@@ -25,7 +27,7 @@ mainFrame.ClipsDescendants = true
 mainFrame.Parent = screenGui
 
 local mainCorner = Instance.new("UICorner")
-mainCorner.CornerRadius = UDim.new(0, 10)
+mainCorner.CornerRadius = UDim.new(0, 8)
 mainCorner.Parent = mainFrame
 
 local mainStroke = Instance.new("UIStroke")
@@ -33,41 +35,185 @@ mainStroke.Color = Color3.fromRGB(0, 180, 255)
 mainStroke.Thickness = 1.5
 mainStroke.Parent = mainFrame
 
--- Header & Greeting
+--------------------------------------------------------------------------------
+-- WINDOWS 11 TITLE BAR & CONTROL BUTTONS (Close, Maximize/Restore, Minimize)
+--------------------------------------------------------------------------------
+
+local windowBar = Instance.new("Frame")
+windowBar.Name = "WindowBar"
+windowBar.Size = UDim2.new(1, 0, 0, 30)
+windowBar.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
+windowBar.BorderSizePixel = 0
+windowBar.Parent = mainFrame
+
+local windowTitle = Instance.new("TextLabel")
+windowTitle.Size = UDim2.new(1, -140, 1, 0)
+windowTitle.Position = UDim2.new(0, 10, 0, 0)
+windowTitle.BackgroundTransparency = 1
+windowTitle.Text = "XONINB CONTROL PANEL"
+windowTitle.TextColor3 = Color3.fromRGB(180, 180, 190)
+windowTitle.TextSize = 11
+windowTitle.Font = Enum.Font.GothamBold
+windowTitle.TextXAlignment = Enum.TextXAlignment.Left
+windowTitle.Parent = windowBar
+
+local controlsFrame = Instance.new("Frame")
+controlsFrame.Name = "ControlsFrame"
+controlsFrame.Size = UDim2.new(0, 120, 1, 0)
+controlsFrame.Position = UDim2.new(1, -120, 0, 0)
+controlsFrame.BackgroundTransparency = 1
+controlsFrame.Parent = windowBar
+
+local controlsLayout = Instance.new("UIListLayout")
+controlsLayout.FillDirection = Enum.FillDirection.Horizontal
+controlsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+controlsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+controlsLayout.Parent = controlsFrame
+
+local function createWinButton(symbol, order, isClose)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 40, 1, 0)
+	btn.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
+	btn.BorderSizePixel = 0
+	btn.Text = symbol
+	btn.TextColor3 = Color3.fromRGB(200, 200, 210)
+	btn.TextSize = 12
+	btn.Font = Enum.Font.GothamMedium
+	btn.LayoutOrder = order
+	btn.Parent = controlsFrame
+
+	local hoverColor = isClose and Color3.fromRGB(232, 17, 35) or Color3.fromRGB(35, 35, 45)
+	local textColor = isClose and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 200, 210)
+
+	btn.MouseEnter:Connect(function()
+		btn.BackgroundColor3 = hoverColor
+		btn.TextColor3 = textColor
+	end)
+
+	btn.MouseLeave:Connect(function()
+		btn.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
+		btn.TextColor3 = Color3.fromRGB(200, 200, 210)
+	end)
+
+	return btn
+end
+
+local minBtn = createWinButton("—", 1, false)
+local maxBtn = createWinButton("□", 2, false)
+local closeBtn = createWinButton("✕", 3, true)
+
+--------------------------------------------------------------------------------
+-- WINDOW CONTROL ACTIONS
+--------------------------------------------------------------------------------
+
+local isMinimized = false
+local isMaximized = false
+local defaultSize = UDim2.new(0, 440, 0, 520)
+local defaultPos = UDim2.new(0.5, -220, 0.5, -260)
+
+minBtn.MouseButton1Click:Connect(function()
+	isMinimized = not isMinimized
+	if isMinimized then
+		TweenService:Create(mainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = UDim2.new(0, 440, 0, 30)
+		}):Play()
+	else
+		TweenService:Create(mainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = isMaximized and UDim2.new(1, -40, 1, -40) or defaultSize
+		}):Play()
+	end
+end)
+
+maxBtn.MouseButton1Click:Connect(function()
+	if isMinimized then return end
+	isMaximized = not isMaximized
+	if isMaximized then
+		maxBtn.Text = "❐"
+		TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = UDim2.new(1, -40, 1, -40),
+			Position = UDim2.new(0, 20, 0, 20)
+		}):Play()
+	else
+		maxBtn.Text = "□"
+		TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = defaultSize,
+			Position = defaultPos
+		}):Play()
+	end
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+	TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		Size = UDim2.new(0, 0, 0, 0),
+		Position = UDim2.new(0.5, 0, 0.5, 0)
+	}):Play()
+	task.wait(0.2)
+	mainFrame.Visible = false
+end)
+
+--------------------------------------------------------------------------------
+-- HEADER PROFILE SECTION
+--------------------------------------------------------------------------------
+
 local header = Instance.new("Frame")
 header.Name = "Header"
 header.Size = UDim2.new(1, 0, 0, 55)
-header.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
+header.Position = UDim2.new(0, 0, 0, 30)
+header.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
 header.BorderSizePixel = 0
 header.Parent = mainFrame
 
-local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(1, -20, 0, 22)
-titleLabel.Position = UDim2.new(0, 15, 0, 6)
-titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "XONINB CONTROL PANEL"
-titleLabel.TextColor3 = Color3.fromRGB(0, 180, 255)
-titleLabel.TextSize = 15
-titleLabel.Font = Enum.Font.GothamBold
-titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-titleLabel.Parent = header
+local avatarImage = Instance.new("ImageLabel")
+avatarImage.Name = "AvatarImage"
+avatarImage.Size = UDim2.new(0, 38, 0, 38)
+avatarImage.Position = UDim2.new(0, 10, 0, 8.5)
+avatarImage.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+avatarImage.BorderSizePixel = 0
+avatarImage.Parent = header
+
+local avatarCorner = Instance.new("UICorner")
+avatarCorner.CornerRadius = UDim.new(1, 0)
+avatarCorner.Parent = avatarImage
+
+local avatarStroke = Instance.new("UIStroke")
+avatarStroke.Color = Color3.fromRGB(0, 180, 255)
+avatarStroke.Thickness = 1
+avatarStroke.Parent = avatarImage
+
+task.spawn(function()
+	local content, isLoaded = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+	if isLoaded then
+		avatarImage.Image = content
+	end
+end)
 
 local welcomeLabel = Instance.new("TextLabel")
-welcomeLabel.Size = UDim2.new(1, -20, 0, 18)
-welcomeLabel.Position = UDim2.new(0, 15, 0, 28)
+welcomeLabel.Size = UDim2.new(1, -60, 0, 20)
+welcomeLabel.Position = UDim2.new(0, 56, 0, 8)
 welcomeLabel.BackgroundTransparency = 1
-welcomeLabel.Text = "Welcome back, " .. player.DisplayName .. " [Toggle: Right Control]"
-welcomeLabel.TextColor3 = Color3.fromRGB(160, 160, 175)
-welcomeLabel.TextSize = 12
-welcomeLabel.Font = Enum.Font.Gotham
+welcomeLabel.Text = "Welcome back, " .. player.DisplayName
+welcomeLabel.TextColor3 = Color3.fromRGB(0, 180, 255)
+welcomeLabel.TextSize = 14
+welcomeLabel.Font = Enum.Font.GothamBold
 welcomeLabel.TextXAlignment = Enum.TextXAlignment.Left
 welcomeLabel.Parent = header
 
--- Sidebar / Tab Navigation Bar
+local subLabel = Instance.new("TextLabel")
+subLabel.Size = UDim2.new(1, -60, 0, 18)
+subLabel.Position = UDim2.new(0, 56, 0, 28)
+subLabel.BackgroundTransparency = 1
+subLabel.Text = "Hotkey: Right Control | Version 2.0"
+subLabel.TextColor3 = Color3.fromRGB(140, 140, 155)
+subLabel.TextSize = 11
+subLabel.Font = Enum.Font.Gotham
+subLabel.TextXAlignment = Enum.TextXAlignment.Left
+subLabel.Parent = header
+
+-- Sidebar Navigation
 local navBar = Instance.new("Frame")
 navBar.Name = "NavBar"
-navBar.Size = UDim2.new(0, 110, 1, -80)
-navBar.Position = UDim2.new(0, 8, 0, 60)
+navBar.Size = UDim2.new(0, 110, 1, -110)
+navBar.Position = UDim2.new(0, 8, 0, 90)
 navBar.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 navBar.BorderSizePixel = 0
 navBar.Parent = mainFrame
@@ -90,8 +236,8 @@ navPadding.Parent = navBar
 -- Content Display Area
 local contentContainer = Instance.new("Frame")
 contentContainer.Name = "ContentContainer"
-contentContainer.Size = UDim2.new(1, -134, 1, -80)
-contentContainer.Position = UDim2.new(0, 126, 0, 60)
+contentContainer.Size = UDim2.new(1, -134, 1, -110)
+contentContainer.Position = UDim2.new(0, 126, 0, 90)
 contentContainer.BackgroundTransparency = 1
 contentContainer.Parent = mainFrame
 
@@ -100,7 +246,7 @@ local statusLabel = Instance.new("TextLabel")
 statusLabel.Name = "StatusLabel"
 statusLabel.Size = UDim2.new(1, 0, 0, 20)
 statusLabel.Position = UDim2.new(0, 0, 1, -20)
-statusLabel.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
+statusLabel.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
 statusLabel.BorderSizePixel = 0
 statusLabel.Text = " System Ready"
 statusLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
@@ -201,42 +347,7 @@ local function createButton(text, parent, order, customColor)
 		TweenService:Create(stroke, tweenInfo, {Color = Color3.fromRGB(50, 50, 65)}):Play()
 	end)
 
-	button.MouseButton1Down:Connect(function()
-		TweenService:Create(button, TweenInfo.new(0.05), {Size = UDim2.new(1, -10, 0, 30)}):Play()
-	end)
-
-	button.MouseButton1Up:Connect(function()
-		TweenService:Create(button, TweenInfo.new(0.05), {Size = UDim2.new(1, -6, 0, 34)}):Play()
-	end)
-
 	return button
-end
-
-local function createTextBox(placeholder, parent, order)
-	local box = Instance.new("TextBox")
-	box.Size = UDim2.new(1, -6, 0, 34)
-	box.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
-	box.BorderSizePixel = 0
-	box.PlaceholderText = placeholder
-	box.PlaceholderColor3 = Color3.fromRGB(120, 120, 135)
-	box.Text = ""
-	box.TextColor3 = Color3.fromRGB(255, 255, 255)
-	box.TextSize = 12
-	box.Font = Enum.Font.Gotham
-	box.ClearTextOnFocus = false
-	box.LayoutOrder = order
-	box.Parent = parent
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 6)
-	corner.Parent = box
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(45, 45, 55)
-	stroke.Thickness = 1
-	stroke.Parent = box
-
-	return box
 end
 
 --------------------------------------------------------------------------------
@@ -252,7 +363,7 @@ tabs["Local"].Button.BackgroundColor3 = Color3.fromRGB(0, 140, 220)
 tabs["Local"].Button.TextColor3 = Color3.fromRGB(255, 255, 255)
 
 --------------------------------------------------------------------------------
--- LOCAL TAB FEATURES (INCLUDING SPIN FLING)
+-- LOCAL TAB FEATURES
 --------------------------------------------------------------------------------
 
 local noclipBtn = createButton("TOGGLE NOCLIP", localPage, 1)
@@ -292,13 +403,12 @@ noclipBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
--- Spin Fling Module (Continuous High Angular Velocity)
 spinFlingBtn.MouseButton1Click:Connect(function()
 	spinFlinging = not spinFlinging
 	if spinFlinging then
 		spinFlingBtn.Text = "SPIN FLING: ACTIVE"
 		spinFlingBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 80)
-		updateStatus("Spin Fling Active - Walk into players to launch them", Color3.fromRGB(0, 255, 150))
+		updateStatus("Spin Fling Active", Color3.fromRGB(0, 255, 150))
 		
 		spinFlingConnection = RunService.PostSimulation:Connect(function()
 			local char = player.Character
@@ -351,55 +461,168 @@ respawnBtn.MouseButton1Click:Connect(function()
 end)
 
 --------------------------------------------------------------------------------
--- TARGET TAB FEATURES (REMOTE TARGET FLING)
+-- TARGET TAB FEATURES (DROPDOWN PLAYER SELECTOR)
 --------------------------------------------------------------------------------
 
-local targetInput = createTextBox("Target Username...", targetPage, 1)
-local tpBtn = createButton("TELEPORT TO TARGET", targetPage, 2)
-local remoteFlingBtn = createButton("REMOTE TARGET FLING", targetPage, 3, Color3.fromRGB(180, 40, 60))
-local viewBtn = createButton("VIEW TARGET", targetPage, 4)
-local unviewBtn = createButton("RESET VIEW", targetPage, 5)
+local selectLabel = Instance.new("TextLabel")
+selectLabel.Size = UDim2.new(1, -6, 0, 16)
+selectLabel.BackgroundTransparency = 1
+selectLabel.Text = "SELECT TARGET PLAYER:"
+selectLabel.TextColor3 = Color3.fromRGB(160, 160, 175)
+selectLabel.TextSize = 11
+selectLabel.Font = Enum.Font.GothamBold
+selectLabel.TextXAlignment = Enum.TextXAlignment.Left
+selectLabel.LayoutOrder = 1
+selectLabel.Parent = targetPage
+
+local dropdownFrame = Instance.new("Frame")
+dropdownFrame.Size = UDim2.new(1, -6, 0, 36)
+dropdownFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
+dropdownFrame.BorderSizePixel = 0
+dropdownFrame.LayoutOrder = 2
+dropdownFrame.ClipsDescendants = false
+dropdownFrame.Parent = targetPage
+
+local dropCorner = Instance.new("UICorner")
+dropCorner.CornerRadius = UDim.new(0, 6)
+dropCorner.Parent = dropdownFrame
+
+local dropStroke = Instance.new("UIStroke")
+dropStroke.Color = Color3.fromRGB(45, 45, 60)
+dropStroke.Thickness = 1
+dropStroke.Parent = dropdownFrame
+
+local dropdownBtn = Instance.new("TextButton")
+dropdownBtn.Size = UDim2.new(1, -40, 1, 0)
+dropdownBtn.BackgroundTransparency = 1
+dropdownBtn.Text = "  Select Player..."
+dropdownBtn.TextColor3 = Color3.fromRGB(200, 200, 210)
+dropdownBtn.TextSize = 12
+dropdownBtn.Font = Enum.Font.Gotham
+dropdownBtn.TextXAlignment = Enum.TextXAlignment.Left
+dropdownBtn.Parent = dropdownFrame
+
+local refreshBtn = Instance.new("TextButton")
+refreshBtn.Size = UDim2.new(0, 32, 0, 28)
+refreshBtn.Position = UDim2.new(1, -34, 0, 4)
+refreshBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+refreshBtn.BorderSizePixel = 0
+refreshBtn.Text = "↻"
+refreshBtn.TextColor3 = Color3.fromRGB(0, 180, 255)
+refreshBtn.TextSize = 16
+refreshBtn.Font = Enum.Font.GothamBold
+refreshBtn.Parent = dropdownFrame
+
+local refreshCorner = Instance.new("UICorner")
+refreshCorner.CornerRadius = UDim.new(0, 4)
+refreshCorner.Parent = refreshBtn
+
+local dropList = Instance.new("ScrollingFrame")
+dropList.Size = UDim2.new(1, 0, 0, 120)
+dropList.Position = UDim2.new(0, 0, 1, 4)
+dropList.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
+dropList.BorderSizePixel = 0
+dropList.ScrollBarThickness = 3
+dropList.ScrollBarImageColor3 = Color3.fromRGB(0, 180, 255)
+dropList.Visible = false
+dropList.ZIndex = 10
+dropList.Parent = dropdownFrame
+
+local listCorner = Instance.new("UICorner")
+listCorner.CornerRadius = UDim.new(0, 6)
+listCorner.Parent = dropList
+
+local listStroke = Instance.new("UIStroke")
+listStroke.Color = Color3.fromRGB(0, 180, 255)
+listStroke.Thickness = 1
+listStroke.Parent = dropList
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Parent = dropList
+
+local isDropdownOpen = false
+
+local function toggleDropdown()
+	isDropdownOpen = not isDropdownOpen
+	dropList.Visible = isDropdownOpen
+end
+
+dropdownBtn.MouseButton1Click:Connect(toggleDropdown)
+
+local function populatePlayerList()
+	for _, child in pairs(dropList:GetChildren()) do
+		if child:IsA("TextButton") then
+			child:Destroy()
+		end
+	end
+
+	local count = 0
+	for _, p in pairs(Players:GetPlayers()) do
+		if p ~= player then
+			count = count + 1
+			local itemBtn = Instance.new("TextButton")
+			itemBtn.Size = UDim2.new(1, 0, 0, 28)
+			itemBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+			itemBtn.BorderSizePixel = 0
+			itemBtn.Text = "  " .. p.DisplayName .. " (@" .. p.Name .. ")"
+			itemBtn.TextColor3 = Color3.fromRGB(200, 200, 210)
+			itemBtn.TextSize = 11
+			itemBtn.Font = Enum.Font.Gotham
+			itemBtn.TextXAlignment = Enum.TextXAlignment.Left
+			itemBtn.ZIndex = 11
+			itemBtn.Parent = dropList
+
+			itemBtn.MouseButton1Click:Connect(function()
+				selectedTargetPlayer = p
+				dropdownBtn.Text = "  " .. p.DisplayName
+				toggleDropdown()
+				updateStatus("Target Selected: " .. p.DisplayName, Color3.fromRGB(0, 180, 255))
+			end)
+		end
+	end
+
+	dropList.CanvasSize = UDim2.new(0, 0, 0, count * 28)
+end
+
+refreshBtn.MouseButton1Click:Connect(function()
+	populatePlayerList()
+	updateStatus("Player List Refreshed", Color3.fromRGB(0, 255, 150))
+end)
+
+populatePlayerList()
+
+local tpBtn = createButton("TELEPORT TO TARGET", targetPage, 3)
+local remoteFlingBtn = createButton("REMOTE TARGET FLING", targetPage, 4, Color3.fromRGB(180, 40, 60))
+local viewBtn = createButton("VIEW TARGET", targetPage, 5)
+local unviewBtn = createButton("RESET VIEW", targetPage, 6)
 
 local isRemoteFlinging = false
 
-local function getTarget()
-	local query = targetInput.Text:lower()
-	if query == "" then return nil end
-	for _, p in pairs(Players:GetPlayers()) do
-		if p ~= player and (p.Name:lower():find(query) or p.DisplayName:lower():find(query)) then
-			return p
-		end
-	end
-	return nil
-end
-
 tpBtn.MouseButton1Click:Connect(function()
-	local target = getTarget()
-	if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+	if selectedTargetPlayer and selectedTargetPlayer.Character and selectedTargetPlayer.Character:FindFirstChild("HumanoidRootPart") then
 		if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-			player.Character.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
-			updateStatus("Teleported to " .. target.DisplayName, Color3.fromRGB(0, 255, 150))
+			player.Character.HumanoidRootPart.CFrame = selectedTargetPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
+			updateStatus("Teleported to " .. selectedTargetPlayer.DisplayName, Color3.fromRGB(0, 255, 150))
 		end
 	else
-		updateStatus("Target not found!", Color3.fromRGB(255, 80, 80))
+		updateStatus("Select a target player first!", Color3.fromRGB(255, 80, 80))
 	end
 end)
 
--- Remote Teleport-Fling Routine
 remoteFlingBtn.MouseButton1Click:Connect(function()
-	local target = getTarget()
-	if not target or not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then
-		updateStatus("Invalid target for remote fling!", Color3.fromRGB(255, 80, 80))
+	if not selectedTargetPlayer or not selectedTargetPlayer.Character or not selectedTargetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		updateStatus("Select a target player first!", Color3.fromRGB(255, 80, 80))
 		return
 	end
 
 	if isRemoteFlinging then return end
 	isRemoteFlinging = true
-	updateStatus("Remote flinging " .. target.DisplayName .. "...", Color3.fromRGB(255, 180, 0))
+	updateStatus("Remote flinging " .. selectedTargetPlayer.DisplayName .. "...", Color3.fromRGB(255, 180, 0))
 
 	local myChar = player.Character
 	local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-	local targetRoot = target.Character.HumanoidRootPart
+	local targetRoot = selectedTargetPlayer.Character.HumanoidRootPart
 
 	if myRoot then
 		local attachment = Instance.new("Attachment", myRoot)
@@ -412,7 +635,7 @@ remoteFlingBtn.MouseButton1Click:Connect(function()
 		local connection
 		local startTime = tick()
 		connection = RunService.Heartbeat:Connect(function()
-			if tick() - startTime > 1.5 or not isRemoteFlinging or not target.Character then
+			if tick() - startTime > 1.5 or not isRemoteFlinging or not selectedTargetPlayer.Character then
 				connection:Disconnect()
 				angVel:Destroy()
 				attachment:Destroy()
@@ -426,12 +649,11 @@ remoteFlingBtn.MouseButton1Click:Connect(function()
 end)
 
 viewBtn.MouseButton1Click:Connect(function()
-	local target = getTarget()
-	if target and target.Character and target.Character:FindFirstChildOfClass("Humanoid") then
-		workspace.CurrentCamera.CameraSubject = target.Character:FindFirstChildOfClass("Humanoid")
-		updateStatus("Spectating " .. target.DisplayName, Color3.fromRGB(0, 180, 255))
+	if selectedTargetPlayer and selectedTargetPlayer.Character and selectedTargetPlayer.Character:FindFirstChildOfClass("Humanoid") then
+		workspace.CurrentCamera.CameraSubject = selectedTargetPlayer.Character:FindFirstChildOfClass("Humanoid")
+		updateStatus("Spectating " .. selectedTargetPlayer.DisplayName, Color3.fromRGB(0, 180, 255))
 	else
-		updateStatus("Target invalid!", Color3.fromRGB(255, 80, 80))
+		updateStatus("Select a target player first!", Color3.fromRGB(255, 80, 80))
 	end
 end)
 
@@ -494,38 +716,86 @@ antiFlingBtn.MouseButton1Click:Connect(function()
 end)
 
 --------------------------------------------------------------------------------
--- HOTKEY TOGGLE & ANIMATIONS (RIGHT CONTROL)
+-- ANIMATED LOADING SCREEN OVERLAY
+--------------------------------------------------------------------------------
+
+local loadingOverlay = Instance.new("Frame")
+loadingOverlay.Name = "LoadingOverlay"
+loadingOverlay.Size = UDim2.new(1, 0, 1, 0)
+loadingOverlay.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
+loadingOverlay.BorderSizePixel = 0
+loadingOverlay.ZIndex = 50
+loadingOverlay.Parent = mainFrame
+
+local loadingTitle = Instance.new("TextLabel")
+loadingTitle.Size = UDim2.new(1, 0, 0, 24)
+loadingTitle.Position = UDim2.new(0, 0, 0.38, 0)
+loadingTitle.BackgroundTransparency = 1
+loadingTitle.Text = "INITIALIZING SYSTEM..."
+loadingTitle.TextColor3 = Color3.fromRGB(0, 180, 255)
+loadingTitle.TextSize = 14
+loadingTitle.Font = Enum.Font.GothamBold
+loadingTitle.ZIndex = 51
+loadingTitle.Parent = loadingOverlay
+
+local loadingStatus = Instance.new("TextLabel")
+loadingStatus.Size = UDim2.new(1, 0, 0, 20)
+loadingStatus.Position = UDim2.new(0, 0, 0.44, 0)
+loadingStatus.BackgroundTransparency = 1
+loadingStatus.Text = "Loading Assets & User Data"
+loadingStatus.TextColor3 = Color3.fromRGB(150, 150, 165)
+loadingStatus.TextSize = 11
+loadingStatus.Font = Enum.Font.Gotham
+loadingStatus.ZIndex = 51
+loadingStatus.Parent = loadingOverlay
+
+-- Spinner Frame
+local spinner = Instance.new("Frame")
+spinner.Size = UDim2.new(0, 36, 0, 36)
+spinner.Position = UDim2.new(0.5, -18, 0.54, 0)
+spinner.BackgroundTransparency = 1
+spinner.ZIndex = 51
+spinner.Parent = loadingOverlay
+
+local spinnerRing = Instance.new("UIStroke")
+spinnerRing.Color = Color3.fromRGB(0, 180, 255)
+spinnerRing.Thickness = 3
+spinnerRing.Parent = spinner
+
+local spinnerCorner = Instance.new("UICorner")
+spinnerCorner.CornerRadius = UDim.new(1, 0)
+spinnerCorner.Parent = spinner
+
+-- Loading Sequence Animation
+task.spawn(function()
+	local spinTween = TweenService:Create(spinner, TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), {Rotation = 360})
+	spinTween:Play()
+
+	task.wait(0.6)
+	loadingStatus.Text = "Connecting Modules..."
+	task.wait(0.6)
+	loadingStatus.Text = "Ready!"
+	task.wait(0.4)
+
+	spinTween:Cancel()
+	
+	TweenService:Create(loadingOverlay, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 1}):Play()
+	TweenService:Create(loadingTitle, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextTransparency = 1}):Play()
+	TweenService:Create(loadingStatus, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextTransparency = 1}):Play()
+	
+	task.wait(0.4)
+	loadingOverlay:Destroy()
+end)
+
+--------------------------------------------------------------------------------
+-- HOTKEY TOGGLE (RIGHT CONTROL)
 --------------------------------------------------------------------------------
 
 local isVisible = true
-local isAnimating = false
 
 local function toggleUI()
-	if isAnimating then return end
-	isAnimating = true
 	isVisible = not isVisible
-
-	if isVisible then
-		mainFrame.Visible = true
-		local tween = TweenService:Create(mainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-			Size = UDim2.new(0, 420, 0, 500),
-			Position = UDim2.new(0.5, -210, 0.5, -250)
-		})
-		tween:Play()
-		tween.Completed:Connect(function()
-			isAnimating = false
-		end)
-	else
-		local tween = TweenService:Create(mainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-			Size = UDim2.new(0, 0, 0, 0),
-			Position = UDim2.new(0.5, 0, 0.5, 0)
-		})
-		tween:Play()
-		tween.Completed:Connect(function()
-			mainFrame.Visible = false
-			isAnimating = false
-		end)
-	end
+	mainFrame.Visible = isVisible
 end
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -535,29 +805,4 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	end
 end)
 
--- Initial Load Animation
-mainFrame.Size = UDim2.new(0, 0, 0, 0)
-mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-
-TweenService:Create(mainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-	Size = UDim2.new(0, 420, 0, 500),
-	Position = UDim2.new(0.5, -210, 0.5, -250)
-}):Play()
-
-player.CharacterAdded:Connect(function(newChar)
-	character = newChar
-	speedBoost = false
-	jumpBoost = false
-	if spinFlinging and spinFlingConnection then
-		spinFlingConnection:Disconnect()
-		spinFlinging = false
-		spinFlingBtn.Text = "TOGGLE SPIN FLING"
-	end
-	if noclipping and noclipConnection then
-		noclipConnection:Disconnect()
-		noclipping = false
-		noclipBtn.Text = "TOGGLE NOCLIP"
-	end
-end)
-
-print("Xoninb Panel Initialized!")
+print("Xoninb Panel Initialized Successfully!")
