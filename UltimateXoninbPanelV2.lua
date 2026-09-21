@@ -8,13 +8,11 @@ local character = player.Character or player.CharacterAdded:Wait()
 
 local selectedTargetPlayer = nil
 
--- Screen Container
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "XoninbModernPanel"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Main Container Frame
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
 mainFrame.Size = UDim2.new(0, 440, 0, 580)
@@ -34,10 +32,6 @@ local mainStroke = Instance.new("UIStroke")
 mainStroke.Color = Color3.fromRGB(0, 180, 255)
 mainStroke.Thickness = 1.5
 mainStroke.Parent = mainFrame
-
---------------------------------------------------------------------------------
--- WINDOWS 11 TITLE BAR & CONTROL BUTTONS
---------------------------------------------------------------------------------
 
 local windowBar = Instance.new("Frame")
 windowBar.Name = "WindowBar"
@@ -147,10 +141,6 @@ closeBtn.MouseButton1Click:Connect(function()
 	mainFrame.Visible = false
 end)
 
---------------------------------------------------------------------------------
--- HEADER PROFILE SECTION
---------------------------------------------------------------------------------
-
 local header = Instance.new("Frame")
 header.Name = "Header"
 header.Size = UDim2.new(1, 0, 0, 55)
@@ -205,7 +195,6 @@ subLabel.Font = Enum.Font.Gotham
 subLabel.TextXAlignment = Enum.TextXAlignment.Left
 subLabel.Parent = header
 
--- Sidebar Navigation
 local navBar = Instance.new("Frame")
 navBar.Name = "NavBar"
 navBar.Size = UDim2.new(0, 110, 1, -110)
@@ -229,7 +218,6 @@ navPadding.PaddingLeft = UDim.new(0, 6)
 navPadding.PaddingRight = UDim.new(0, 6)
 navPadding.Parent = navBar
 
--- Content Display Area
 local contentContainer = Instance.new("Frame")
 contentContainer.Name = "ContentContainer"
 contentContainer.Size = UDim2.new(1, -134, 1, -110)
@@ -237,7 +225,6 @@ contentContainer.Position = UDim2.new(0, 126, 0, 90)
 contentContainer.BackgroundTransparency = 1
 contentContainer.Parent = mainFrame
 
--- Footer Status Bar
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Name = "StatusLabel"
 statusLabel.Size = UDim2.new(1, 0, 0, 20)
@@ -250,10 +237,6 @@ statusLabel.TextSize = 11
 statusLabel.Font = Enum.Font.GothamMedium
 statusLabel.TextXAlignment = Enum.TextXAlignment.Left
 statusLabel.Parent = mainFrame
-
---------------------------------------------------------------------------------
--- HELPER FUNCTIONS
---------------------------------------------------------------------------------
 
 local tabs = {}
 
@@ -346,10 +329,6 @@ local function createButton(text, parent, order, customColor)
 	return button
 end
 
---------------------------------------------------------------------------------
--- TABS CREATION
---------------------------------------------------------------------------------
-
 local localPage = createTab("Local", 1)
 local targetPage = createTab("Target", 2)
 local settingsPage = createTab("Settings", 3)
@@ -357,10 +336,6 @@ local settingsPage = createTab("Settings", 3)
 tabs["Local"].Page.Visible = true
 tabs["Local"].Button.BackgroundColor3 = Color3.fromRGB(0, 140, 220)
 tabs["Local"].Button.TextColor3 = Color3.fromRGB(255, 255, 255)
-
---------------------------------------------------------------------------------
--- LOCAL TAB (FLY, GOD MODE & LOCAL CONTROLS)
---------------------------------------------------------------------------------
 
 local flyBtn = createButton("TOGGLE FLY MODE", localPage, 1, Color3.fromRGB(0, 150, 180))
 local godModeBtn = createButton("TOGGLE GOD MODE", localPage, 2, Color3.fromRGB(0, 120, 180))
@@ -384,7 +359,6 @@ local jumpBoost = false
 local noclipConnection = nil
 local spinFlingConnection = nil
 
--- FLY LOGIC
 flyBtn.MouseButton1Click:Connect(function()
 	isFlying = not isFlying
 	local char = player.Character
@@ -444,7 +418,6 @@ flyBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
--- GOD MODE LOGIC
 godModeBtn.MouseButton1Click:Connect(function()
 	isGodMode = not isGodMode
 	if isGodMode then
@@ -559,10 +532,6 @@ respawnBtn.MouseButton1Click:Connect(function()
 		updateStatus("Respawning...", Color3.fromRGB(255, 200, 0))
 	end
 end)
-
---------------------------------------------------------------------------------
--- TARGET TAB (COPY AVATAR & WASD/MOUSE REMOTE CONTROL INCLUDED)
---------------------------------------------------------------------------------
 
 local selectLabel = Instance.new("TextLabel")
 selectLabel.Size = UDim2.new(1, -6, 0, 16)
@@ -692,7 +661,6 @@ end)
 
 populatePlayerList()
 
--- Target Action Buttons
 local tpBtn = createButton("TELEPORT TO TARGET", targetPage, 3)
 local copyAvatarBtn = createButton("COPY TARGET'S AVATAR", targetPage, 4, Color3.fromRGB(0, 120, 180))
 local remoteControlBtn = createButton("TOGGLE WASD / MOUSE REMOTE CONTROL", targetPage, 5, Color3.fromRGB(0, 150, 120))
@@ -707,7 +675,6 @@ local targetSpinConnection = nil
 local isRemoteControlling = false
 local remoteControlConnection = nil
 
--- COPY TARGET'S AVATAR LOGIC
 copyAvatarBtn.MouseButton1Click:Connect(function()
 	if not selectedTargetPlayer then
 		updateStatus("Select a target player first!", Color3.fromRGB(255, 80, 80))
@@ -729,7 +696,6 @@ copyAvatarBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
--- FULL WASD AND MOUSE REMOTE CONTROL LOGIC
 remoteControlBtn.MouseButton1Click:Connect(function()
 	if not selectedTargetPlayer or not selectedTargetPlayer.Character or not selectedTargetPlayer.Character:FindFirstChild("HumanoidRootPart") then
 		updateStatus("Select a target player first!", Color3.fromRGB(255, 80, 80))
@@ -791,7 +757,6 @@ remoteControlBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
--- Target Spin Logic
 targetSpinBtn.MouseButton1Click:Connect(function()
 	if not selectedTargetPlayer or not selectedTargetPlayer.Character or not selectedTargetPlayer.Character:FindFirstChild("HumanoidRootPart") then
 		updateStatus("Select a target player first!", Color3.fromRGB(255, 80, 80))
@@ -895,10 +860,6 @@ unviewBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
---------------------------------------------------------------------------------
--- SETTINGS & ANTI-FLING MODULE
---------------------------------------------------------------------------------
-
 local antiFlingBtn = createButton("ANTI-FLING: OFF", settingsPage, 1)
 local antiFlingActive = false
 local antiFlingConnection = nil
@@ -945,10 +906,6 @@ antiFlingBtn.MouseButton1Click:Connect(function()
 		end
 	end
 end)
-
---------------------------------------------------------------------------------
--- ANIMATED LOADING SCREEN OVERLAY
---------------------------------------------------------------------------------
 
 local loadingOverlay = Instance.new("Frame")
 loadingOverlay.Name = "LoadingOverlay"
@@ -1015,10 +972,6 @@ task.spawn(function()
 	task.wait(0.4)
 	loadingOverlay:Destroy()
 end)
-
---------------------------------------------------------------------------------
--- HOTKEY TOGGLE (RIGHT CONTROL)
---------------------------------------------------------------------------------
 
 local isVisible = true
 
