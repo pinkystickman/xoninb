@@ -1,3 +1,6 @@
+-- Xoninb Control Panel v5.0 (CLIENT ONLY - LocalScript / executor)
+-- Includes: Server Join by Job ID + Join Back to saved server
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -1078,6 +1081,56 @@ end)
 local partsGrp = createGroup("Misc", "Unanchored Parts")
 local espToolsGrp = createGroup("Misc", "ESP & Visual Tools")
 local utilGrp = createGroup("Misc", "Utilities & BTools")
+local serverJoinGrp = createGroup("Misc", "Server Join")
+
+-- ===== SERVER JOIN HELPERS (client-only) =====
+local SAVE_FILE = "xoninb_last_server.txt"
+local lastServerMemory = nil -- fallback if the executor has no writefile
+
+local function saveCurrentServer()
+	local data = game.PlaceId .. "|" .. game.JobId
+	lastServerMemory = data
+	if writefile then
+		pcall(function() writefile(SAVE_FILE, data) end)
+	end
+end
+
+local function loadSavedServer()
+	if readfile and isfile and isfile(SAVE_FILE) then
+		local ok, data = pcall(readfile, SAVE_FILE)
+		if ok and data then
+			local placeId, jobId = string.match(data, "^(%d+)|(.+)$")
+			if placeId and jobId then return tonumber(placeId), jobId end
+		end
+	end
+	if lastServerMemory then
+		local placeId, jobId = string.match(lastServerMemory, "^(%d+)|(.+)$")
+		if placeId and jobId then return tonumber(placeId), jobId end
+	end
+	return nil, nil
+end
+
+local function joinServer(placeId, jobId)
+	if not jobId or jobId == "" then
+		updateStatus("Enter a Job ID first!", Color3.fromRGB(255, 80, 80))
+		return
+	end
+	saveCurrentServer() -- remember where we came from so we can go back
+	updateStatus("Joining server...", Color3.fromRGB(255, 200, 0))
+	local ok, err = pcall(function()
+		TeleportService:TeleportToPlaceInstance(placeId, jobId, player)
+	end)
+	if not ok then
+		updateStatus("Teleport error: " .. tostring(err), Color3.fromRGB(255, 80, 80))
+	end
+end
+
+TeleportService.TeleportInitFailed:Connect(function(plr, result, msg)
+	if plr == player then
+		updateStatus("Teleport failed: " .. tostring(result), Color3.fromRGB(255, 80, 80))
+	end
+end)
+-- ===== END SERVER JOIN HELPERS =====
 
 local isCirclingParts = false
 local circleConnection = nil
@@ -1245,6 +1298,7 @@ createButton("REJOIN SAME SERVER", utilGrp, Color3.fromRGB(180, 120, 0), functio
 end)
 
 createButton("SERVER HOP (RANDOM)", utilGrp, Color3.fromRGB(180, 120, 0), function()
+	saveCurrentServer() -- remember where we came from
 	updateStatus("Server Hopping...", Color3.fromRGB(255, 200, 0))
 	TeleportService:Teleport(game.PlaceId, player)
 end)
@@ -1268,6 +1322,56 @@ createButton("COPY CURRENT SERVER JOB ID", utilGrp, nil, function()
 		updateStatus("Job ID printed to console", Color3.fromRGB(0, 180, 255))
 	end
 end)
+
+-- ===== SERVER JOIN UI =====
+local jobIdInput = Instance.new("TextBox")
+jobIdInput.Size = UDim2.new(1, 0, 0, 28)
+jobIdInput.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
+jobIdInput.BorderSizePixel = 0
+jobIdInput.PlaceholderText = "  Paste Server Job ID..."
+jobIdInput.Text = ""
+jobIdInput.TextColor3 = Color3.fromRGB(220, 220, 230)
+jobIdInput.TextSize = 11
+jobIdInput.Font = Enum.Font.Gotham
+jobIdInput.TextXAlignment = Enum.TextXAlignment.Left
+jobIdInput.ClearTextOnFocus = false
+jobIdInput.Parent = serverJoinGrp
+Instance.new("UICorner", jobIdInput).CornerRadius = UDim.new(0, 5)
+
+local placeIdInput = Instance.new("TextBox")
+placeIdInput.Size = UDim2.new(1, 0, 0, 28)
+placeIdInput.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
+placeIdInput.BorderSizePixel = 0
+placeIdInput.PlaceholderText = "  Place ID (blank = current game)"
+placeIdInput.Text = ""
+placeIdInput.TextColor3 = Color3.fromRGB(220, 220, 230)
+placeIdInput.TextSize = 11
+placeIdInput.Font = Enum.Font.Gotham
+placeIdInput.TextXAlignment = Enum.TextXAlignment.Left
+placeIdInput.ClearTextOnFocus = false
+placeIdInput.Parent = serverJoinGrp
+Instance.new("UICorner", placeIdInput).CornerRadius = UDim.new(0, 5)
+
+createButton("JOIN SERVER BY JOB ID", serverJoinGrp, Color3.fromRGB(0, 140, 200), function()
+	local jobId = string.gsub(jobIdInput.Text, "%s", "")
+	local placeId = tonumber(placeIdInput.Text) or game.PlaceId
+	joinServer(placeId, jobId)
+end)
+
+createButton("SAVE CURRENT SERVER", serverJoinGrp, nil, function()
+	saveCurrentServer()
+	updateStatus("Saved current server", Color3.fromRGB(0, 255, 150))
+end)
+
+createButton("JOIN BACK TO SAVED SERVER", serverJoinGrp, Color3.fromRGB(0, 160, 100), function()
+	local placeId, jobId = loadSavedServer()
+	if placeId and jobId then
+		joinServer(placeId, jobId)
+	else
+		updateStatus("No saved server found!", Color3.fromRGB(255, 80, 80))
+	end
+end)
+-- ===== END SERVER JOIN UI =====
 
 local protectGrp = createGroup("Settings", "Protections & Anti")
 local uiSettingsGrp = createGroup("Settings", "UI Customization")
