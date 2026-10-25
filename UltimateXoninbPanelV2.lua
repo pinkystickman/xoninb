@@ -1,4 +1,4 @@
--- Xoninb Control Panel v5.0 (CLIENT ONLY - LocalScript / executor)
+-- Xoninb Control Panel v6.0 (CLIENT ONLY - LocalScript / executor)
 -- Includes: Server Join by Job ID + Join Back to saved server
 
 local Players = game:GetService("Players")
@@ -17,7 +17,7 @@ local character = player.Character or player.CharacterAdded:Wait()
 local selectedTargetPlayer = nil
 
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "XoninbModernPanelV5"
+screenGui.Name = "XoninbModernPanelV6"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
@@ -52,7 +52,7 @@ local windowTitle = Instance.new("TextLabel")
 windowTitle.Size = UDim2.new(1, -140, 1, 0)
 windowTitle.Position = UDim2.new(0, 10, 0, 0)
 windowTitle.BackgroundTransparency = 1
-windowTitle.Text = "XONINB CONTROL PANEL v5.0"
+windowTitle.Text = "XONINB CONTROL PANEL v6.0"
 windowTitle.TextColor3 = Color3.fromRGB(180, 180, 190)
 windowTitle.TextSize = 11
 windowTitle.Font = Enum.Font.GothamBold
@@ -1555,6 +1555,526 @@ createButton("ADD DYNAMIC BUTTON", customButtonsGrp, Color3.fromRGB(0, 160, 100)
 	end
 end)
 
+-- ===== V6 EXTRA FEATURES (client-only) =====
+-- Wrapped in xpcall so it uses its own local scope and can never break the rest of the panel.
+xpcall(function()
+	local GREEN = Color3.fromRGB(0, 255, 150)
+	local RED = Color3.fromRGB(255, 90, 90)
+	local BLUE = Color3.fromRGB(0, 180, 255)
+	local YELLOW = Color3.fromRGB(255, 200, 0)
+
+	local function getHum()
+		local c = player.Character
+		return c and c:FindFirstChildOfClass("Humanoid")
+	end
+
+	local function getRoot()
+		local c = player.Character
+		return c and c:FindFirstChild("HumanoidRootPart")
+	end
+
+	local function makeBox(parent, placeholder, text)
+		local box = Instance.new("TextBox")
+		box.Size = UDim2.new(1, 0, 0, 28)
+		box.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
+		box.BorderSizePixel = 0
+		box.PlaceholderText = "  " .. placeholder
+		box.Text = text or ""
+		box.TextColor3 = Color3.fromRGB(220, 220, 230)
+		box.TextSize = 11
+		box.Font = Enum.Font.Gotham
+		box.TextXAlignment = Enum.TextXAlignment.Left
+		box.ClearTextOnFocus = false
+		box.Parent = parent
+		Instance.new("UICorner", box).CornerRadius = UDim.new(0, 5)
+		return box
+	end
+
+	----------------------------------------------------------------
+	-- LOCAL TAB: ARM ANIMATIONS (works on R6 and R15)
+	----------------------------------------------------------------
+	local armGrp = createGroup("Local", "Arm Animations")
+	local armConn, armMotor, armOrigC0 = nil, nil, nil
+	local armSpeed = 1
+
+	local function getRightShoulder()
+		local char = player.Character
+		if not char then return nil end
+		local upper = char:FindFirstChild("RightUpperArm")
+		if upper then return upper:FindFirstChild("RightShoulder") end
+		local torso = char:FindFirstChild("Torso")
+		if torso then return torso:FindFirstChild("Right Shoulder") end
+		return nil
+	end
+
+	local function stopArm()
+		if armConn then armConn:Disconnect() armConn = nil end
+		if armMotor and armMotor.Parent and armOrigC0 then armMotor.C0 = armOrigC0 end
+		armMotor, armOrigC0 = nil, nil
+	end
+
+	local function startArm(name, rotFn)
+		stopArm()
+		local motor = getRightShoulder()
+		if not motor then
+			updateStatus("Right shoulder not found", RED)
+			return
+		end
+		armMotor = motor
+		armOrigC0 = motor.C0
+		local base = CFrame.new(armOrigC0.Position)
+		local rest = base:Inverse() * armOrigC0
+		local startTime = os.clock()
+		armConn = RunService.RenderStepped:Connect(function()
+			if not motor.Parent then stopArm() return end
+			local t = (os.clock() - startTime) * armSpeed
+			motor.C0 = base * rotFn(t) * rest
+		end)
+		updateStatus("Arm animation: " .. name, GREEN)
+	end
+
+	local armAnims = {
+		{"WAVE", function(t) return CFrame.Angles(0, 0, math.rad(140 + math.sin(t * 10) * 25)) end},
+		{"PUNCH", function(t) return CFrame.Angles(math.rad(90 * math.abs(math.sin(t * 6))), 0, 0) end},
+		{"FLEX", function(t) return CFrame.Angles(0, 0, math.rad(85 + math.sin(t * 6) * 8)) end},
+		{"WINDMILL", function(t) return CFrame.Angles(t * 8, 0, 0) end},
+		{"POINT FORWARD", function(t) return CFrame.Angles(math.rad(90), 0, 0) end},
+	}
+
+	for _, a in ipairs(armAnims) do
+		createButton(a[1] .. " (RIGHT ARM)", armGrp, nil, function() startArm(a[1], a[2]) end)
+	end
+
+	createButton("ARM ANIM SPEED +", armGrp, nil, function()
+		armSpeed = armSpeed + 0.25
+		updateStatus("Arm anim speed: " .. armSpeed, BLUE)
+	end)
+
+	createButton("ARM ANIM SPEED -", armGrp, nil, function()
+		armSpeed = math.max(0.25, armSpeed - 0.25)
+		updateStatus("Arm anim speed: " .. armSpeed, BLUE)
+	end)
+
+	createButton("STOP ARM ANIMATION", armGrp, Color3.fromRGB(140, 35, 45), function()
+		stopArm()
+		updateStatus("Arm animation stopped", RED)
+	end)
+
+	player.CharacterAdded:Connect(function() stopArm() end)
+
+	----------------------------------------------------------------
+	-- LOCAL TAB: ANIMATION PLAYER (play any animation by ID)
+	----------------------------------------------------------------
+	local animGrp = createGroup("Local", "Animation Player")
+	local animBox = makeBox(animGrp, "Animation ID (numbers only)", "")
+	local animSpeedBox = makeBox(animGrp, "Playback speed (default 1)", "1")
+	local currentTrack = nil
+
+	createButton("PLAY ANIMATION BY ID", animGrp, Color3.fromRGB(0, 140, 200), function()
+		local digits = string.gsub(animBox.Text, "%D", "")
+		local id = tonumber(digits)
+		local hum = getHum()
+		if not id or not hum then
+			updateStatus("Enter a valid animation ID!", RED)
+			return
+		end
+		local animator = hum:FindFirstChildOfClass("Animator") or Instance.new("Animator", hum)
+		if currentTrack then currentTrack:Stop() currentTrack = nil end
+
+		local anim = Instance.new("Animation")
+		anim.AnimationId = "rbxassetid://" .. id
+		local ok, track = pcall(function() return animator:LoadAnimation(anim) end)
+		if ok and track then
+			track.Looped = true
+			track:Play()
+			track:AdjustSpeed(tonumber(animSpeedBox.Text) or 1)
+			currentTrack = track
+			updateStatus("Playing animation " .. id, GREEN)
+		else
+			updateStatus("Could not load animation " .. id, RED)
+		end
+	end)
+
+	createButton("STOP ANIMATION", animGrp, nil, function()
+		if currentTrack then currentTrack:Stop() currentTrack = nil end
+		updateStatus("Animation stopped", RED)
+	end)
+
+	----------------------------------------------------------------
+	-- LOCAL TAB: EXTRA MOVEMENT
+	----------------------------------------------------------------
+	local extraMoveGrp = createGroup("Local", "Extra Movement")
+
+	local clickTP = false
+	mouse.Button1Down:Connect(function()
+		if not clickTP then return end
+		if not UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then return end
+		local root = getRoot()
+		if root and mouse.Hit then
+			root.CFrame = CFrame.new(mouse.Hit.Position + Vector3.new(0, 3, 0))
+		end
+	end)
+
+	createButton("TOGGLE CLICK TP (CTRL + CLICK)", extraMoveGrp, Color3.fromRGB(0, 150, 180), function()
+		clickTP = not clickTP
+		updateStatus("Click TP " .. (clickTP and "Enabled" or "Disabled"), clickTP and GREEN or RED)
+	end)
+
+	local spinConn = nil
+	createButton("TOGGLE CHARACTER SPIN", extraMoveGrp, nil, function()
+		if spinConn then
+			spinConn:Disconnect()
+			spinConn = nil
+			updateStatus("Character spin off", RED)
+		else
+			updateStatus("Character spin on", GREEN)
+			spinConn = RunService.RenderStepped:Connect(function()
+				local root = getRoot()
+				if root then root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(15), 0) end
+			end)
+		end
+	end)
+
+	local wsBox = makeBox(extraMoveGrp, "WalkSpeed value (e.g. 50)", "")
+	createButton("SET CUSTOM WALKSPEED", extraMoveGrp, nil, function()
+		local v = tonumber(wsBox.Text)
+		local hum = getHum()
+		if v and hum then
+			hum.WalkSpeed = v
+			updateStatus("WalkSpeed: " .. v, BLUE)
+		else
+			updateStatus("Enter a number!", RED)
+		end
+	end)
+
+	local jpBox = makeBox(extraMoveGrp, "JumpPower value (e.g. 100)", "")
+	createButton("SET CUSTOM JUMPPOWER", extraMoveGrp, nil, function()
+		local v = tonumber(jpBox.Text)
+		local hum = getHum()
+		if v and hum then
+			hum.UseJumpPower = true
+			hum.JumpPower = v
+			updateStatus("JumpPower: " .. v, BLUE)
+		else
+			updateStatus("Enter a number!", RED)
+		end
+	end)
+
+	local flyBox = makeBox(extraMoveGrp, "Fly speed value (e.g. 100)", "")
+	createButton("SET FLY SPEED", extraMoveGrp, nil, function()
+		local v = tonumber(flyBox.Text)
+		if v then
+			flySpeed = v
+			updateStatus("Fly speed: " .. v, BLUE)
+		else
+			updateStatus("Enter a number!", RED)
+		end
+	end)
+
+	----------------------------------------------------------------
+	-- CAMERA TAB: EXTRAS
+	----------------------------------------------------------------
+	local camExtraGrp = createGroup("Camera", "Camera Extras")
+
+	createButton("UNLOCK CAMERA ZOOM", camExtraGrp, nil, function()
+		player.CameraMaxZoomDistance = 100000
+		player.CameraMinZoomDistance = 0
+		updateStatus("Camera zoom unlocked", GREEN)
+	end)
+
+	createButton("RESET CAMERA ZOOM", camExtraGrp, nil, function()
+		player.CameraMaxZoomDistance = 128
+		player.CameraMinZoomDistance = 0.5
+		updateStatus("Camera zoom reset", RED)
+	end)
+
+	createButton("TOGGLE FIRST PERSON LOCK", camExtraGrp, nil, function()
+		if player.CameraMode == Enum.CameraMode.LockFirstPerson then
+			player.CameraMode = Enum.CameraMode.Classic
+			updateStatus("First person lock off", RED)
+		else
+			player.CameraMode = Enum.CameraMode.LockFirstPerson
+			updateStatus("First person lock on", GREEN)
+		end
+	end)
+
+	local specIndex = 0
+	local function cycleSpectate(dir)
+		local list = {}
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p ~= player then table.insert(list, p) end
+		end
+		if #list == 0 then
+			updateStatus("No other players", RED)
+			return
+		end
+		specIndex = ((specIndex - 1 + dir) % #list) + 1
+		local p = list[specIndex]
+		local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+		if hum then
+			workspace.CurrentCamera.CameraSubject = hum
+			updateStatus("Spectating " .. p.DisplayName, BLUE)
+		else
+			updateStatus(p.DisplayName .. " has no character", RED)
+		end
+	end
+
+	createButton("SPECTATE NEXT PLAYER", camExtraGrp, nil, function() cycleSpectate(1) end)
+	createButton("SPECTATE PREVIOUS PLAYER", camExtraGrp, nil, function() cycleSpectate(-1) end)
+
+	----------------------------------------------------------------
+	-- WORLD TAB: EXTRAS
+	----------------------------------------------------------------
+	local worldExtraGrp = createGroup("World", "World Extras")
+
+	local gravBox = makeBox(worldExtraGrp, "Gravity value (default 196.2)", "")
+	createButton("SET GRAVITY", worldExtraGrp, nil, function()
+		local v = tonumber(gravBox.Text)
+		if v then
+			workspace.Gravity = v
+			updateStatus("Gravity: " .. v, BLUE)
+		else
+			updateStatus("Enter a number!", RED)
+		end
+	end)
+
+	local timeBox = makeBox(worldExtraGrp, "Clock time 0-24 (e.g. 6.5)", "")
+	createButton("SET CUSTOM TIME", worldExtraGrp, nil, function()
+		local v = tonumber(timeBox.Text)
+		if v then
+			Lighting.ClockTime = v
+			updateStatus("ClockTime: " .. v, BLUE)
+		else
+			updateStatus("Enter a number!", RED)
+		end
+	end)
+
+	local rainbowConn = nil
+	local rainbowOriginal = nil
+	createButton("TOGGLE RAINBOW AMBIENT", worldExtraGrp, Color3.fromRGB(0, 150, 180), function()
+		if rainbowConn then
+			rainbowConn:Disconnect()
+			rainbowConn = nil
+			if rainbowOriginal then Lighting.Ambient = rainbowOriginal end
+			updateStatus("Rainbow ambient off", RED)
+		else
+			rainbowOriginal = Lighting.Ambient
+			updateStatus("Rainbow ambient on", GREEN)
+			rainbowConn = RunService.Heartbeat:Connect(function()
+				Lighting.Ambient = Color3.fromHSV((os.clock() * 0.2) % 1, 0.6, 1)
+			end)
+		end
+	end)
+
+	createButton("REMOVE ALL PARTICLES & EFFECTS", worldExtraGrp, nil, function()
+		local count = 0
+		for _, v in pairs(workspace:GetDescendants()) do
+			if v:IsA("ParticleEmitter") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") or v:IsA("Trail") then
+				v.Enabled = false
+				count = count + 1
+			end
+		end
+		updateStatus("Disabled " .. count .. " effects", GREEN)
+	end)
+
+	----------------------------------------------------------------
+	-- MISC TAB: WAYPOINTS
+	----------------------------------------------------------------
+	local wpGrp = createGroup("Misc", "Waypoints")
+	local wpBox = makeBox(wpGrp, "Waypoint name...", "")
+	local waypoints = {}
+
+	createButton("SAVE WAYPOINT HERE", wpGrp, Color3.fromRGB(0, 160, 100), function()
+		local name = wpBox.Text
+		local root = getRoot()
+		if name ~= "" and root then
+			waypoints[name] = root.CFrame
+			updateStatus("Saved waypoint: " .. name, GREEN)
+		else
+			updateStatus("Enter a waypoint name!", RED)
+		end
+	end)
+
+	createButton("TELEPORT TO WAYPOINT", wpGrp, nil, function()
+		local cf = waypoints[wpBox.Text]
+		local root = getRoot()
+		if cf and root then
+			root.CFrame = cf
+			updateStatus("Teleported to " .. wpBox.Text, GREEN)
+		else
+			updateStatus("Waypoint not found!", RED)
+		end
+	end)
+
+	createButton("LIST WAYPOINTS", wpGrp, nil, function()
+		local names = {}
+		for n in pairs(waypoints) do table.insert(names, n) end
+		updateStatus(#names > 0 and ("Waypoints: " .. table.concat(names, ", ")) or "No waypoints saved", BLUE)
+	end)
+
+	createButton("CLEAR WAYPOINTS", wpGrp, Color3.fromRGB(140, 35, 45), function()
+		waypoints = {}
+		updateStatus("Waypoints cleared", RED)
+	end)
+
+	createButton("COPY MY POSITION", wpGrp, nil, function()
+		local root = getRoot()
+		if not root then return end
+		local p = root.Position
+		local text = string.format("%.1f, %.1f, %.1f", p.X, p.Y, p.Z)
+		if setclipboard then
+			setclipboard(text)
+			updateStatus("Position copied: " .. text, GREEN)
+		else
+			print("Position:", text)
+			updateStatus("Position printed to console", BLUE)
+		end
+	end)
+
+	----------------------------------------------------------------
+	-- MISC TAB: NAME ESP + STATS OVERLAY
+	----------------------------------------------------------------
+	local visualGrp = createGroup("Misc", "Name ESP & Stats")
+	local nameEspOn = false
+	local nameTags = {}
+
+	local function clearTags()
+		for _, tag in pairs(nameTags) do tag:Destroy() end
+		nameTags = {}
+	end
+
+	Players.PlayerRemoving:Connect(function(p)
+		if nameTags[p] then
+			nameTags[p]:Destroy()
+			nameTags[p] = nil
+		end
+	end)
+
+	createButton("TOGGLE NAME ESP (DIST + HEALTH)", visualGrp, Color3.fromRGB(0, 180, 90), function()
+		nameEspOn = not nameEspOn
+		if nameEspOn then
+			updateStatus("Name ESP Enabled", GREEN)
+			task.spawn(function()
+				while nameEspOn do
+					local myRoot = getRoot()
+					for _, p in ipairs(Players:GetPlayers()) do
+						if p ~= player and p.Character then
+							local head = p.Character:FindFirstChild("Head")
+							local hum = p.Character:FindFirstChildOfClass("Humanoid")
+							if head then
+								local tag = nameTags[p]
+								if not tag or not tag.Parent then
+									tag = Instance.new("BillboardGui")
+									tag.Size = UDim2.new(0, 160, 0, 36)
+									tag.StudsOffset = Vector3.new(0, 3, 0)
+									tag.AlwaysOnTop = true
+									tag.Adornee = head
+									tag.Parent = screenGui
+
+									local label = Instance.new("TextLabel")
+									label.Name = "Label"
+									label.Size = UDim2.new(1, 0, 1, 0)
+									label.BackgroundTransparency = 1
+									label.TextColor3 = Color3.fromRGB(255, 255, 255)
+									label.TextStrokeTransparency = 0
+									label.TextSize = 12
+									label.Font = Enum.Font.GothamBold
+									label.Parent = tag
+									nameTags[p] = tag
+								end
+								tag.Adornee = head
+								local dist = myRoot and math.floor((head.Position - myRoot.Position).Magnitude) or 0
+								local hp = hum and math.floor(hum.Health) or 0
+								tag.Label.Text = p.DisplayName .. "\n[" .. dist .. " studs | " .. hp .. " HP]"
+							end
+						end
+					end
+					task.wait(0.2)
+				end
+			end)
+		else
+			updateStatus("Name ESP Disabled", RED)
+			clearTags()
+		end
+	end)
+
+	local statsLabel = Instance.new("TextLabel")
+	statsLabel.Size = UDim2.new(0, 190, 0, 22)
+	statsLabel.Position = UDim2.new(0, 10, 0, 10)
+	statsLabel.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
+	statsLabel.BackgroundTransparency = 0.25
+	statsLabel.BorderSizePixel = 0
+	statsLabel.TextColor3 = GREEN
+	statsLabel.TextSize = 11
+	statsLabel.Font = Enum.Font.GothamBold
+	statsLabel.Text = "FPS: -- | Ping: --"
+	statsLabel.Visible = false
+	statsLabel.Parent = screenGui
+	Instance.new("UICorner", statsLabel).CornerRadius = UDim.new(0, 5)
+
+	local statsConn = nil
+	createButton("TOGGLE FPS / PING DISPLAY", visualGrp, nil, function()
+		if statsConn then
+			statsConn:Disconnect()
+			statsConn = nil
+			statsLabel.Visible = false
+			updateStatus("Stats overlay off", RED)
+		else
+			statsLabel.Visible = true
+			updateStatus("Stats overlay on", GREEN)
+			local frames, last = 0, os.clock()
+			statsConn = RunService.RenderStepped:Connect(function()
+				frames = frames + 1
+				local now = os.clock()
+				if now - last >= 0.5 then
+					local fps = math.floor(frames / (now - last))
+					local ping = math.floor(player:GetNetworkPing() * 1000)
+					statsLabel.Text = "FPS: " .. fps .. " | Ping: " .. ping .. " ms"
+					frames, last = 0, now
+				end
+			end)
+		end
+	end)
+
+	----------------------------------------------------------------
+	-- SETTINGS TAB: UI EXTRAS
+	----------------------------------------------------------------
+	local uiExtraGrp = createGroup("Settings", "UI Extras")
+	local uiScale = Instance.new("UIScale")
+	uiScale.Scale = 1
+	uiScale.Parent = mainFrame
+
+	createButton("UI SCALE +", uiExtraGrp, nil, function()
+		uiScale.Scale = math.min(1.5, uiScale.Scale + 0.1)
+		updateStatus("UI Scale: " .. string.format("%.1f", uiScale.Scale), BLUE)
+	end)
+
+	createButton("UI SCALE -", uiExtraGrp, nil, function()
+		uiScale.Scale = math.max(0.6, uiScale.Scale - 0.1)
+		updateStatus("UI Scale: " .. string.format("%.1f", uiScale.Scale), BLUE)
+	end)
+
+	local glass = false
+	createButton("TOGGLE GLASS PANEL", uiExtraGrp, nil, function()
+		glass = not glass
+		mainFrame.BackgroundTransparency = glass and 0.25 or 0
+		updateStatus("Glass panel " .. (glass and "on" or "off"), BLUE)
+	end)
+
+	createButton("DESTROY PANEL (UNLOAD)", uiExtraGrp, Color3.fromRGB(140, 35, 45), function()
+		stopArm()
+		if spinConn then spinConn:Disconnect() end
+		if statsConn then statsConn:Disconnect() end
+		if rainbowConn then rainbowConn:Disconnect() end
+		nameEspOn = false
+		clickTP = false
+		screenGui:Destroy()
+	end)
+end, function(err)
+	warn("[Xoninb v6] Extra features failed to load: " .. tostring(err))
+end)
+-- ===== END V6 EXTRA FEATURES =====
+
 local loadingOverlay = Instance.new("Frame")
 loadingOverlay.Name = "LoadingOverlay"
 loadingOverlay.Size = UDim2.new(1, 0, 1, 0)
@@ -1632,4 +2152,4 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	end
 end)
 
-print("Xoninb Modern Panel v5.0 Loaded Successfully!")
+print("Xoninb Modern Panel v6.0 Loaded Successfully!")
